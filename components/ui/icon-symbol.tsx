@@ -5,20 +5,54 @@ import { SymbolWeight, SymbolViewProps } from 'expo-symbols';
 import { ComponentProps } from 'react';
 import { OpaqueColorValue, type StyleProp, type TextStyle } from 'react-native';
 
-type IconMapping = Record<SymbolViewProps['name'], ComponentProps<typeof MaterialIcons>['name']>;
-type IconSymbolName = keyof typeof MAPPING;
-
-/**
- * Add your SF Symbols to Material Icons mappings here.
- * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
- * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
- */
-const MAPPING = {
+// Extend the mapping to include our custom icons
+const EXTENDED_MAPPING = {
   'house.fill': 'home',
+  'home': 'home',
   'paperplane.fill': 'send',
   'chevron.left.forwardslash.chevron.right': 'code',
+  'person.fill': 'person',
+  'person.2.fill': 'group',
+  'chart.bar.fill': 'bar-chart',
+  'line.3.horizontal': 'menu',
+  'plus.circle.fill': 'add-circle',
+  'cart.fill': 'shopping-cart',
+  'phone.fill': 'phone',
+  'car.fill': 'directions-car',
+  'bolt.fill': 'flash-on',
+  'xmark.circle.fill': 'cancel',
+  'arrow.up.circle': 'arrow-upward',
+  'arrow.down.circle': 'arrow-downward',
+  'arrow.up.circle.fill': 'arrow-upward',
+  'arrow.down.circle.fill': 'arrow-downward',
+  'checkmark.circle.fill': 'check-circle',
+  'dollarsign.circle.fill': 'attach-money',
+  'calendar': 'calendar-today',
+  'exclamationmark.triangle.fill': 'warning',
+  'exclamationmark.circle.fill': 'error',
+  'lightbulb.fill': 'lightbulb',
+  'trending.up.fill': 'trending-up',
+  'trending.down.fill': 'trending-down',
+  'alert.fill': 'notifications',
+  'clock.fill': 'schedule',
+  'circle.fill': 'radio-button-checked',
+  'location.fill': 'location-on',
+  'gear.fill': 'settings',
+  'download.fill': 'download',
+  'shield.fill': 'security',
+  'questionmark.circle.fill': 'help',
+  'arrow.up.square.fill': 'logout',
+  'info.circle.fill': 'info',
   'chevron.right': 'chevron-right',
-} as IconMapping;
+  'bell.fill': 'notifications',
+  'lock.fill': 'lock',
+  'key.fill': 'vpn-key',
+  'trash.fill': 'delete',
+  'mail.fill': 'email',
+  'chat.fill': 'chat',
+} as const;
+
+type IconSymbolName = keyof typeof EXTENDED_MAPPING;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
@@ -30,6 +64,7 @@ export function IconSymbol({
   size = 24,
   color,
   style,
+  weight,
 }: {
   name: IconSymbolName;
   size?: number;
@@ -37,5 +72,5 @@ export function IconSymbol({
   style?: StyleProp<TextStyle>;
   weight?: SymbolWeight;
 }) {
-  return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
+  return <MaterialIcons color={color} size={size} name={EXTENDED_MAPPING[name]} style={style} />;
 }

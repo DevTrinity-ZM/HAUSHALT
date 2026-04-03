@@ -1,0 +1,166 @@
+import { supabase } from '../supabase';
+
+// Define types locally to avoid circular dependencies
+type UserProfile = {
+  id: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  student_id: string;
+  user_type: 'student_hostel' | 'student_private' | 'professional' | 'sharing_roommates';
+  location: 'kitwe' | 'lusaka' | 'other';
+  household_size: number;
+  monthly_income: number | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type UserProfileInsert = {
+  user_id: string;
+  full_name: string;
+  email: string;
+  student_id: string;
+  user_type: 'student_hostel' | 'student_private' | 'professional' | 'sharing_roommates';
+  location: 'kitwe' | 'lusaka' | 'other';
+  household_size?: number;
+  monthly_income?: number;
+};
+
+type UserProfileUpdate = {
+  full_name?: string;
+  user_type?: 'student_hostel' | 'student_private' | 'professional' | 'sharing_roommates';
+  location?: 'kitwe' | 'lusaka' | 'other';
+  household_size?: number;
+  monthly_income?: number;
+};
+
+export class ProfileService {
+  // Get user profile by ID
+  static async getProfile(userId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Get profile error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to get profile' 
+      };
+    }
+  }
+
+  // Create or update user profile
+  static async upsertProfile(
+    userId: string, 
+    profileData: UserProfileInsert | UserProfileUpdate
+  ): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .upsert({
+          ...profileData,
+          user_id: userId,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Upsert profile error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to save profile' 
+      };
+    }
+  }
+
+  // Update user profile
+  static async updateProfile(
+    userId: string, 
+    updates: UserProfileUpdate
+  ): Promise<{ success: boolean; data?: UserProfile; error?: string }> {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('Update profile error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to update profile' 
+      };
+    }
+  }
+
+  // Delete user profile
+  static async deleteProfile(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase
+        .from('user_profiles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) {
+        throw error;
+      }
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Delete profile error:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to delete profile' 
+      };
+    }
+  }
+
+  // Subscribe to profile changes
+  static subscribeToProfile(
+    userId: string, 
+    callback: (profile: UserProfile) => void
+  ) {
+    return supabase
+      .channel(`profile_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_profiles',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+            callback(payload.new as UserProfile);
+          }
+        }
+      )
+      .subscribe();
+  }
+}

@@ -1,0 +1,316 @@
+import React, { createContext, ReactNode, useContext, useEffect, useReducer } from 'react';
+import { AppState } from 'react-native';
+import { authService, AuthState } from '../lib/auth';
+import { realtimeManager } from '../lib/supabase';
+
+// App state types
+interface AppStateData {
+  auth: AuthState;
+  userProfile: any;
+  notifications: any[];
+  unreadNotifications: number;
+  networkStatus: 'online' | 'offline';
+  lastSync: Date | null;
+}
+
+// Action types
+type AppAction =
+  | { type: 'SET_AUTH_STATE'; payload: AuthState }
+  | { type: 'SET_USER_PROFILE'; payload: any }
+  | { type: 'ADD_NOTIFICATION'; payload: any }
+  | { type: 'MARK_NOTIFICATION_READ'; payload: string }
+  | { type: 'MARK_ALL_NOTIFICATIONS_READ' }
+  | { type: 'CLEAR_NOTIFICATIONS' }
+  | { type: 'SET_NETWORK_STATUS'; payload: 'online' | 'offline' }
+  | { type: 'SET_LAST_SYNC'; payload: Date }
+  | { type: 'LOGOUT' };
+
+// Initial state
+const initialState: AppStateData = {
+  auth: { user: null, session: null, loading: true },
+  userProfile: null,
+  notifications: [],
+  unreadNotifications: 0,
+  networkStatus: 'online',
+  lastSync: null,
+};
+
+// Reducer
+function appReducer(state: AppStateData, action: AppAction): AppStateData {
+  switch (action.type) {
+    case 'SET_AUTH_STATE':
+      return {
+        ...state,
+        auth: action.payload,
+      };
+    
+    case 'SET_USER_PROFILE':
+      return {
+        ...state,
+        userProfile: action.payload,
+      };
+    
+    case 'ADD_NOTIFICATION':
+      return {
+        ...state,
+        notifications: [action.payload, ...state.notifications],
+        unreadNotifications: state.unreadNotifications + 1,
+      };
+    
+    case 'MARK_NOTIFICATION_READ':
+      return {
+        ...state,
+        notifications: state.notifications.map(n =>
+          n.id === action.payload ? { ...n, read: true } : n
+        ),
+        unreadNotifications: Math.max(0, state.unreadNotifications - 1),
+      };
+    
+    case 'MARK_ALL_NOTIFICATIONS_READ':
+      return {
+        ...state,
+        notifications: state.notifications.map(n => ({ ...n, read: true })),
+        unreadNotifications: 0,
+      };
+    
+    case 'CLEAR_NOTIFICATIONS':
+      return {
+        ...state,
+        notifications: [],
+        unreadNotifications: 0,
+      };
+    
+    case 'SET_NETWORK_STATUS':
+      return {
+        ...state,
+        networkStatus: action.payload,
+      };
+    
+    case 'SET_LAST_SYNC':
+      return {
+        ...state,
+        lastSync: action.payload,
+      };
+    
+    case 'LOGOUT':
+      return {
+        ...initialState,
+        auth: { user: null, session: null, loading: false },
+      };
+    
+    default:
+      return state;
+  }
+}
+
+// Context
+const AppContext = createContext<{
+  state: AppStateData;
+  dispatch: React.Dispatch<AppAction>;
+  actions: {
+    signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    signUp: (email: string, password: string, fullName: string, studentId: string) => Promise<{ success: boolean; error?: string }>;
+    signOut: () => Promise<{ success: boolean; error?: string }>;
+    refreshUserProfile: () => Promise<void>;
+    addNotification: (notification: any) => void;
+    markNotificationRead: (id: string) => void;
+    markAllNotificationsRead: () => void;
+    clearNotifications: () => void;
+    syncData: () => Promise<void>;
+  };
+} | null>(null);
+
+// Provider component
+interface AppProviderProps {
+  children: ReactNode;
+}
+
+export function AppProvider({ children }: AppProviderProps) {
+  const [state, dispatch] = useReducer(appReducer, initialState);
+
+  // Actions
+  const actions = {
+    signIn: async (email: string, password: string) => {
+      const result = await authService.signIn(email, password);
+      if (result.success) {
+        // Auth state will be updated by the listener
+        // Note: refreshUserProfile will be called from the auth state listener
+      }
+      return result;
+    },
+
+    signUp: async (email: string, password: string, fullName: string, studentId: string) => {
+      const result = await authService.signUp(email, password, fullName, studentId);
+      return result;
+    },
+
+    signOut: async () => {
+      const result = await authService.signOut();
+      if (result.success) {
+        realtimeManager.unsubscribeAll();
+        dispatch({ type: 'LOGOUT' });
+      }
+      return result;
+    },
+
+    refreshUserProfile: async () => {
+      const userId = await authService.getCurrentUser();
+      if (userId.success && userId.user) {
+        // TODO: Fetch user profile from ProfileService
+        // const profileResult = await ProfileService.getProfile(userId.user.id);
+        // if (profileResult.success && profileResult.data) {
+        //   dispatch({ type: 'SET_USER_PROFILE', payload: profileResult.data });
+        // }
+      }
+    },
+
+    addNotification: (notification: any) => {
+      dispatch({ type: 'ADD_NOTIFICATION', payload: { ...notification, read: false } });
+    },
+
+    markNotificationRead: (id: string) => {
+      dispatch({ type: 'MARK_NOTIFICATION_READ', payload: id });
+    },
+
+    markAllNotificationsRead: () => {
+      dispatch({ type: 'MARK_ALL_NOTIFICATIONS_READ' });
+    },
+
+    clearNotifications: () => {
+      dispatch({ type: 'CLEAR_NOTIFICATIONS' });
+    },
+
+    syncData: async () => {
+      if (state.auth.user) {
+        try {
+          // Trigger data sync here
+          dispatch({ type: 'SET_LAST_SYNC', payload: new Date() });
+        } catch (error) {
+          console.error('Sync error:', error);
+        }
+      }
+    },
+  };
+
+  // Set up auth state listener
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChange((authState) => {
+      dispatch({ type: 'SET_AUTH_STATE', payload: authState });
+      
+      if (authState.user) {
+        actions.refreshUserProfile();
+        // Set up real-time subscriptions
+        setupRealtimeSubscriptions(authState.user.id);
+      } else {
+        realtimeManager.unsubscribeAll();
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
+  // Set up real-time subscriptions
+  const setupRealtimeSubscriptions = (userId: string) => {
+    // Subscribe to notifications
+    const notificationChannelName = `notifications_${Date.now()}`;
+    realtimeManager.subscribeToTable(
+      'user_notifications' as any, // This table would need to be created
+      'INSERT',
+      (payload) => {
+        actions.addNotification(payload.new);
+      },
+      `user_id=eq.${userId}`
+    );
+
+    return () => {
+      realtimeManager.unsubscribe(notificationChannelName);
+    };
+  };
+
+  // Monitor network status
+  useEffect(() => {
+    const handleOnline = () => dispatch({ type: 'SET_NETWORK_STATUS', payload: 'online' });
+    const handleOffline = () => dispatch({ type: 'SET_NETWORK_STATUS', payload: 'offline' });
+
+    // For React Native, we'll use AppState and assume online for now
+    // In a real app, you'd use @react-native-async-storage/async-storage and @react-native-netinfo/netinfo
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        handleOnline();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // Auto-sync when coming back online
+  useEffect(() => {
+    if (state.networkStatus === 'online' && state.auth.user) {
+      actions.syncData();
+    }
+  }, [state.networkStatus, state.auth.user]);
+
+  const value = {
+    state,
+    dispatch,
+    actions,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+}
+
+// Hook to use app context
+export function useApp() {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useApp must be used within an AppProvider');
+  }
+  return context;
+}
+
+// Convenience hooks
+export function useAuth() {
+  const { state, actions } = useApp();
+  return {
+    user: state.auth.user,
+    session: state.auth.session,
+    loading: state.auth.loading,
+    isAuthenticated: !!state.auth.user,
+    signIn: actions.signIn,
+    signUp: actions.signUp,
+    signOut: actions.signOut,
+  };
+}
+
+export function useUserProfile() {
+  const { state, actions } = useApp();
+  return {
+    profile: state.userProfile,
+    refreshProfile: actions.refreshUserProfile,
+  };
+}
+
+export function useNotifications() {
+  const { state, actions } = useApp();
+  return {
+    notifications: state.notifications,
+    unreadCount: state.unreadNotifications,
+    addNotification: actions.addNotification,
+    markAsRead: actions.markNotificationRead,
+    markAllAsRead: actions.markAllNotificationsRead,
+    clearNotifications: actions.clearNotifications,
+  };
+}
+
+export function useNetworkStatus() {
+  const { state } = useApp();
+  return {
+    isOnline: state.networkStatus === 'online',
+    status: state.networkStatus,
+    lastSync: state.lastSync,
+  };
+}
