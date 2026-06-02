@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { ExpenseService } from '@/lib/services/expense-service';
 import { GroupService } from '@/lib/services/group-service';
 import { categorizeExpense, parseExpenseInput } from '@/utils/expenseCategorization';
 import { validateExpenseInput } from '@/utils/validation';
-import { Alert } from 'react-native';
 
 export default function AddExpenseScreen() {
   const router = useRouter();

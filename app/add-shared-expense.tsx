@@ -43,8 +43,9 @@ export default function AddSharedExpenseScreen() {
         if (result.data.length > 0) {
           setSelectedGroupId(result.data[0].id);
           setSelectedGroupName(result.data[0].name);
-          // TODO: Fetch actual group members
-          setMembers(['You', 'Member 1', 'Member 2']);
+          // For now, default to just the current user
+          // Group members will be fetched when group details API is implemented
+          setMembers(['You']);
         }
       } else {
         setGroups([]);

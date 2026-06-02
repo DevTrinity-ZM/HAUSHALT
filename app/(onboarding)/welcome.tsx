@@ -1,5 +1,4 @@
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -7,11 +6,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-// import { supabase } from '@/lib/supabase';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
   const handleGetStarted = () => {
     // Navigate to sign up
@@ -21,18 +18,6 @@ export default function WelcomeScreen() {
   const handleSignIn = () => {
     // Navigate to sign in
     router.push('/(auth)/sign-in');
-  };
-
-  // TODO: Check if user is already authenticated
-  const checkAuthStatus = async () => {
-    try {
-      // const { data: { session } } = await supabase.auth.getSession();
-      // if (session) {
-      //   router.replace('/(tabs)');
-      // }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-    }
   };
 
   return (
@@ -90,11 +75,10 @@ export default function WelcomeScreen() {
         
         <Card style={styles.card}>
           <Button
-            title={loading ? "Loading..." : "Let's get started"}
+            title="Let's get started"
             onPress={handleGetStarted}
             size="large"
             style={styles.button}
-            disabled={loading}
           />
         </Card>
         

@@ -157,6 +157,16 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   UNIQUE(user_id)
 );
 
+-- User Feedback Table (for help screen)
+CREATE TABLE IF NOT EXISTS user_feedback (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  feedback TEXT NOT NULL,
+  email TEXT,
+  status TEXT DEFAULT 'new' CHECK (status IN ('new', 'reviewed', 'resolved')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create Indexes for Performance
 CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON user_profiles(user_id);
 CREATE INDEX IF NOT EXISTS idx_budget_categories_user_id_month_year ON budget_categories(user_id, month, year);
@@ -171,6 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_settlements_to_user ON settlements(to_user);
 CREATE INDEX IF NOT EXISTS idx_grocery_trips_user_id ON grocery_trips(user_id);
 CREATE INDEX IF NOT EXISTS idx_grocery_trip_items_trip_id ON grocery_trip_items(trip_id);
 CREATE INDEX IF NOT EXISTS idx_price_records_item_location ON price_records(item_id, location, date DESC);
+CREATE INDEX IF NOT EXISTS idx_user_feedback_user_id ON user_feedback(user_id);
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
@@ -184,6 +195,7 @@ ALTER TABLE grocery_trips ENABLE ROW LEVEL SECURITY;
 ALTER TABLE grocery_trip_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_feedback ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
 -- Users can only access their own data
@@ -236,6 +248,9 @@ DROP POLICY IF EXISTS "Users can insert price records" ON price_records;
 DROP POLICY IF EXISTS "Users can view own preferences" ON user_preferences;
 DROP POLICY IF EXISTS "Users can manage own preferences" ON user_preferences;
 DROP POLICY IF EXISTS "Users can update own preferences" ON user_preferences;
+
+DROP POLICY IF EXISTS "Users can view own feedback" ON user_feedback;
+DROP POLICY IF EXISTS "Users can insert own feedback" ON user_feedback;
 
 -- Now create the policies
 CREATE POLICY "Users can view own profile" ON user_profiles FOR SELECT USING (auth.uid() = user_id);
@@ -308,6 +323,9 @@ CREATE POLICY "Users can insert price records" ON price_records FOR INSERT WITH 
 CREATE POLICY "Users can view own preferences" ON user_preferences FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can manage own preferences" ON user_preferences FOR ALL USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own preferences" ON user_preferences FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own feedback" ON user_feedback FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own feedback" ON user_feedback FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- Functions for automatic timestamp updates
 CREATE OR REPLACE FUNCTION update_updated_at_column()

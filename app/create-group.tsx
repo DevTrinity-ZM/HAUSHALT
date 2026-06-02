@@ -49,11 +49,13 @@ export default function CreateGroupScreen() {
     setCreating(true);
     try {
       // Create the group in Supabase
-      const groupResult = await GroupService.createGroup({
-        name: groupName,
-        description: `Group created by ${user.email || 'user'}`,
-        created_by: user.id,
-      });
+      const groupResult = await GroupService.createGroup(
+        {
+          name: groupName,
+          description: `Group created by ${user.email || 'user'}`,
+        },
+        user.id
+      );
 
       if (!groupResult.success || !groupResult.data) {
         throw new Error(groupResult.error || 'Failed to create group');

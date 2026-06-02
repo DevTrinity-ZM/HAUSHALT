@@ -35,7 +35,7 @@ export default function SignInScreen() {
       
       if (result.success) {
         // Navigate to main app
-        router.replace('/(tabs)');
+        router.replace('/(tabs)/dashboard');
       } else {
         Alert.alert('Sign In Error', result.error || 'Failed to sign in');
       }
@@ -47,7 +47,6 @@ export default function SignInScreen() {
   };
 
   const handleForgotPassword = () => {
-    // TODO: Implement forgot password
     Alert.alert('Forgot Password', 'Password reset functionality coming soon!');
   };
 

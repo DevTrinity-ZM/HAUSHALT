@@ -61,22 +61,43 @@ export class GroupService {
     userId: string
   ): Promise<{ success: boolean; data?: any[]; error?: string }> {
     try {
-      const { data, error } = await supabase
+      // First, get group IDs where user is a member
+      const { data: memberData, error: memberError } = await supabase
+        .from('group_members')
+        .select('group_id, role, joined_at')
+        .eq('user_id', userId);
+
+      if (memberError) {
+        throw memberError;
+      }
+
+      if (!memberData || memberData.length === 0) {
+        return { success: true, data: [] };
+      }
+
+      // Get the group IDs
+      const groupIds = memberData.map(m => m.group_id);
+
+      // Then fetch the groups by ID (avoids RLS recursion)
+      const { data: groups, error: groupsError } = await supabase
         .from('groups')
-        .select(`
-          *,
-          group_members!inner(
-            user_id,
-            role,
-            joined_at
-          )
-        `)
-        .eq('group_members.user_id', userId)
+        .select('*')
+        .in('id', groupIds)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        throw error;
+      if (groupsError) {
+        throw groupsError;
       }
+
+      // Merge member info with groups
+      const data = groups?.map(group => {
+        const memberInfo = memberData.find(m => m.group_id === group.id);
+        return {
+          ...group,
+          role: memberInfo?.role || 'member',
+          joined_at: memberInfo?.joined_at,
+        };
+      });
 
       return { success: true, data };
     } catch (error: any) {
