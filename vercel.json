@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "buildCommand": "npm run web:build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "EXPO_PUBLIC_SUPABASE_URL": "@supabase_url",
+    "EXPO_PUBLIC_SUPABASE_ANON_KEY": "@supabase_anon_key"
+  }
+}

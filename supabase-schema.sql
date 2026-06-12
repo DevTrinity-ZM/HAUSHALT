@@ -286,12 +286,8 @@ CREATE POLICY "Users can join groups" ON group_members FOR INSERT WITH CHECK (us
 CREATE POLICY "Users can update own membership" ON group_members FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "Users can leave groups" ON group_members FOR DELETE USING (user_id = auth.uid());
 
-CREATE POLICY "Group admins can manage memberships" ON group_members FOR ALL USING (
-  user_id = auth.uid() AND 
-  group_id IN (
-    SELECT group_id FROM group_members WHERE user_id = auth.uid() AND role = 'admin'
-  )
-);
+-- Removed circular dependency - admin management handled at application level
+-- The following policies provide basic membership management without circular references
 
 CREATE POLICY "Group members can view group expenses" ON group_expenses FOR SELECT USING (group_id IN (
   SELECT group_id FROM group_members WHERE user_id = auth.uid()

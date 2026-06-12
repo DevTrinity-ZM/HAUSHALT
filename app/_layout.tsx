@@ -7,7 +7,7 @@ import { AppProvider } from '@/contexts/app-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export const unstable_settings = {
-  anchor: '(tabs)/dashboard',
+  anchor: '(tabs)',
 };
 
 export default function RootLayout() {
